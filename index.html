@@ -1,12 +1,81 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مولد الدايكت - Die-Line Generator</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
+  body { background:#1a1a2e; color:#eee; padding:15px; }
+  h1 { text-align:center; color:#e94560; margin-bottom:5px; font-size:22px; }
+  p.sub { text-align:center; color:#888; font-size:13px; margin-bottom:15px; }
+  .card { background:#16213e; border-radius:12px; padding:15px; margin-bottom:15px; }
+  label { display:block; margin:8px 0 4px; font-size:14px; color:#aaa; }
+  input { width:100%; padding:10px; border-radius:8px; border:1px solid #333;
+          background:#0f3460; color:#fff; font-size:16px; }
+  .row { display:flex; gap:10px; }
+  .row > div { flex:1; }
+  button { width:100%; padding:14px; margin-top:12px; border:none; border-radius:10px;
+           background:#e94560; color:#fff; font-size:17px; font-weight:bold; cursor:pointer; }
+  button:active { transform:scale(0.98); }
+  #result { background:#fff; border-radius:12px; overflow:hidden; }
+  canvas { width:100%; display:block; }
+  .info { background:#0f3460; border-radius:8px; padding:10px; margin-top:10px;
+          font-size:14px; line-height:1.8; }
+  .info b { color:#e94560; }
+  .legend { display:flex; gap:15px; justify-content:center; margin-top:10px; font-size:13px; flex-wrap:wrap; }
+  .legend span { display:flex; align-items:center; gap:5px; }
+  .line-red { width:25px; height:0; border-top:3px solid #e60000; }
+  .line-blue { width:25px; height:0; border-top:3px dashed #0066ff; }
+</style>
+</head>
+<body>
+
+<h1>📦 مولد الدايكت</h1>
+<p class="sub">علبة غلق تلقائي - Straight Tuck End</p>
+
+<div class="card">
+  <div class="row">
+    <div><label>الطول L (مم)</label><input type="number" id="L_" value="80"></div>
+    <div><label>العرض W (مم)</label><input type="number" id="W_" value="40"></div>
+    <div><label>الارتفاع H (مم)</label><input type="number" id="H_" value="120"></div>
+  </div>
+  <div class="row">
+    <div><label>عرض الورقة (مم)</label><input type="number" id="SW_" value="700"></div>
+    <div><label>طول الورقة (مم)</label><input type="number" id="SH_" value="1000"></div>
+  </div>
+  <button onclick="generate()">🎨 ارسم الدايكت واحسب التعشيش</button>
+</div>
+
+<div id="result" style="display:none;">
+  <canvas id="cv"></canvas>
+</div>
+
+<div class="info" id="stats"></div>
+
+<div class="legend">
+  <span><span class="line-red"></span> خط قص ✂️</span>
+  <span><span class="line-blue"></span> خط طي 📏</span>
+</div>
+
 <script>
 function generate(){
-  const L=+L_.value, W=+W_.value, H=+H_.value;
-  const SW=+SW_.value, SH=+SH_.value;
-  const glue=20, flap=Math.min(W/2,25);
-  const dw=2*(L+W)+glue, dh=H+2*flap;
+  const L=+document.getElementById('L_').value;
+  const W=+document.getElementById('W_').value;
+  const H=+document.getElementById('H_').value;
+  const SW=+document.getElementById('SW_').value;
+  const SH=+document.getElementById('SH_').value;
 
-  // ===== التعشيش =====
-  function grid(bw,bh){ 
+  // ===== أبعاد الدايكت المسطّح =====
+  const glue=20;                          // اللزمة الجانبية
+  const dust=Math.min(W-3,20);            // الفلاب الجانبي (Dust Flap)
+  const topFlap=W;                        // الفلاب الرئيسي = عرض العلبة
+  const tuck=Math.min(W/2,15);            // لسان التدبيب (Tuck)
+  const dw=2*(L+W)+glue;                  // عرض الدايكت الكلي
+  const dh=H+2*(topFlap+tuck);            // طول الدايKT الكلي
+
+  // ===== حساب التعشيش =====
+  function grid(bw,bh){
     const c=Math.floor((SW+2)/bw), r=Math.floor((SH+2)/bh);
     return {c,r,n:c*r};
   }
@@ -16,61 +85,99 @@ function generate(){
   // ===== الرسم =====
   const cv=document.getElementById('cv');
   const maxW=cv.parentElement.clientWidth-20;
-  const scale=Math.min(maxW/dw, 600/dh);
-  cv.width=dw*scale+40; cv.height=dh*scale+40;
+  const scale=Math.min(maxW/dw, 700/dh);
+  cv.width=dw*scale+40;
+  cv.height=dh*scale+40;
   const x=cv.getContext('2d');
 
-  // خلفية بيضاء واضحة
   x.fillStyle='#ffffff';
   x.fillRect(0,0,cv.width,cv.height);
 
   x.save();
   x.translate(20,20);
   x.scale(scale,scale);
-  x.lineWidth=Math.max(2/scale,0.5);   // خط سميك ومضمون
 
-  // خطوط التثليث (الطي) - أزرق متقطع
-  x.strokeStyle='#0066ff';
-  x.setLineDash([5/scale,3/scale]);
+  const panels=[L,W,L,W];   // الألواح الأربعة
+  const cutW=Math.max(3/scale,0.8);   // سماكة خط القص
+  const foldW=Math.max(2/scale,0.5);  // سماكة خط الطي
 
-  // الجسم: 4 ألواح (L,W,L,W)
-  const panels=[L,W,L,W];
-  let px=glue;
-  panels.forEach(p=>{
-    x.strokeRect(px,flap,p,H);
-    px+=p;
-  });
+  // ---------- خطوط القص (أحمر متصل) ----------
+  x.strokeStyle='#e60000';
+  x.lineWidth=cutW;
+  x.setLineDash([]);
 
-  // الفلابات العلوية والسفلية (شكل المنزل/الغطاء)
+  function drawTopFlaps(topY, dir){
+    // dir=1 للفلابات العلوية، dir=-1 للسفلية
+    let px=glue;
+    panels.forEach((p,i)=>{
+      if(i%2===0){
+        // لوح L → فلاب رئيسي + لسان تدبيب
+        x.strokeRect(px, topY, p, dir*topFlap);
+        x.strokeRect(px+tuck*0.5, topY+dir*(topFlap-tuck), p-tuck, dir*tuck);
+      }else{
+        // لوح W → فلاب جانبي Dust Flap
+        x.strokeRect(px, topY, p, dir*dust);
+      }
+      px+=p;
+    });
+  }
+
+  // الفلابات العلوية (فوق الجسم)
+  drawTopFlaps(0, 1);
+  // الفلابات السفلية (تحت الجسم)
+  drawTopFlaps(dh, -1);
+
+  // محيط اللزمة
   x.beginPath();
-  px=glue;
-  panels.forEach(p=>{
-    x.moveTo(px,flap);
-    x.lineTo(px+p/2,flap-flap); // قمة الفلاب العلوي
-    x.lineTo(px+p,flap);
-    x.moveTo(px,flap+H);
-    x.lineTo(px+p/2,flap+H+flap); // قمة الفلاب السفلي
-    x.lineTo(px+p,flap+H);
-    px+=p;
-  });
+  x.moveTo(glue,0);
+  x.lineTo(0,0);
+  x.lineTo(0,dh);
+  x.lineTo(glue,dh);
   x.stroke();
 
-  // خطوط القص (المحيط الخارجي) - أحمر سميك متصل
-  x.setLineDash([]);
-  x.strokeStyle='#e60000';
-  x.lineWidth=Math.max(3/scale,0.8);
-  x.strokeRect(glue,0,2*(L+W),dh);      // محيط الجسم + الفلابات
-  x.strokeRect(0,flap,glue,H);          // اللزمة
+  // ---------- خطوط الطي (أزرق متقطع) ----------
+  x.strokeStyle='#0066ff';
+  x.lineWidth=foldW;
+  x.setLineDash([5/scale,3/scale]);
+
+  // خطوط الطي الرأسية بين الألواح
+  let px=glue;
+  panels.forEach(p=>{
+    x.beginPath();
+    x.moveTo(px,0);
+    x.lineTo(px,dh);
+    x.stroke();
+    px+=p;
+  });
+
+  // خطوط طي أفقية عند بداية الفلابات
+  [0, dh].forEach(y=>{
+    x.beginPath();
+    x.moveTo(glue,y);
+    x.lineTo(glue+L+W+L+W,y);
+    x.stroke();
+  });
+
+  // خطوط طي أفقية عند بداية لسان التدبيب
+  [topFlap-tuck, dh-(topFlap-tuck)].forEach(y=>{
+    x.beginPath();
+    x.moveTo(glue+tuck*0.5, y);
+    x.lineTo(glue+L+W+L+W-tuck*0.5, y);
+    x.stroke();
+  });
 
   x.restore();
 
-  // ===== النتيجة =====
+  // ===== عرض النتيجة =====
   document.getElementById('result').style.display='block';
   const eff=((best.n*dw*dh/(SW*SH))*100).toFixed(1);
   document.getElementById('stats').innerHTML=
    `📐 مقاس الدايكت المسطّح: <b>dw×{dw} ×dw×{dh} مم</b><br>`+
-   `🧩 القطع في الورقة (SW×{SW}×SW×{SH} مم): <b>best.nقطعة</b>({best.n} قطعة</b> (best.nقطعة</b>({best.c}×${best.r})`+
+   `🧩 القطع في الورقة (SW×{SW}×SW×{SH} مم): <b>best.nقطعة</b>({best.n} قطعة</b> (best.nقطعة</b>({best.c} عمود × ${best.r} صف)`+
    (rot?' <span style="color:#2a9d8f">(مدوّرة 90°)</span>':'')+'<br>'+
    `♻️ كفاءة استغلال الورقة: <b>${eff}%</b>`;
 }
 </script>
+
+</body>
+</html>
