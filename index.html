@@ -1,120 +1,76 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>مولد الدايكت - Die-Line Generator</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
-  body { background:#1a1a2e; color:#eee; padding:15px; }
-  h1 { text-align:center; color:#e94560; margin-bottom:5px; font-size:22px; }
-  p.sub { text-align:center; color:#888; font-size:13px; margin-bottom:15px; }
-  .card { background:#16213e; border-radius:12px; padding:15px; margin-bottom:15px; }
-  label { display:block; margin:8px 0 4px; font-size:14px; color:#aaa; }
-  input { width:100%; padding:10px; border-radius:8px; border:1px solid #333;
-          background:#0f3460; color:#fff; font-size:16px; }
-  .row { display:flex; gap:10px; }
-  .row > div { flex:1; }
-  button { width:100%; padding:14px; margin-top:12px; border:none; border-radius:10px;
-           background:#e94560; color:#fff; font-size:17px; font-weight:bold; cursor:pointer; }
-  button:active { transform:scale(0.98); }
-  #result { background:#fff; border-radius:12px; overflow:hidden; }
-  canvas { width:100%; display:block; }
-  .info { background:#0f3460; border-radius:8px; padding:10px; margin-top:10px; font-size:14px; line-height:1.8; }
-  .info b { color:#e94560; }
-</style>
-</head>
-<body>
-
-<h1>📦 مولد الدايكت</h1>
-<p class="sub">علبة مستطيلة (صندوق أدوية / كرتوني)</p>
-
-<div class="card">
-  <div class="row">
-    <div><label>الطول L (مم)</label><input type="number" id="L" value="80"></div>
-    <div><label>العرض W (مم)</label><input type="number" id="W" value="40"></div>
-    <div><label>الارتفاع H (مم)</label><input type="number" id="H" value="120"></div>
-  </div>
-  <div class="row">
-    <div><label>عرض ورقة الطباعة (مم)</label><input type="number" id="SW" value="700"></div>
-    <div><label>طول ورقة الطباعة (مم)</label><input type="number" id="SH" value="1000"></div>
-  </div>
-  <button onclick="generate()">🎨 ارسم الدايكت واحسب التعشيش</button>
-</div>
-
-<div id="result" style="display:none;">
-  <canvas id="cv"></canvas>
-</div>
-<div class="info" id="stats"></div>
-
 <script>
 function generate(){
-  const L=+document.getElementById('L').value;
-  const W=+document.getElementById('W').value;
-  const H=+document.getElementById('H').value;
-  const SW=+document.getElementById('SW').value;
-  const SH=+document.getElementById('SH').value;
+  const L=+L_.value, W=+W_.value, H=+H_.value;
+  const SW=+SW_.value, SH=+SH_.value;
+  const glue=20, flap=Math.min(W/2,25);
+  const dw=2*(L+W)+glue, dh=H+2*flap;
 
-  // أبعاد الدايكت المسطّح:
-  // العرض = 2*(L+W) + لزمة 20مم ، الطول = H + فلاب علوي وسفلي (W/2 لكل)
-  const glue = 20;
-  const flap = Math.min(W/2, 25);
-  const dw = 2*(L+W) + glue;   // عرض الدايكت
-  const dh = H + 2*flap;       // طول الدايكت
-
-  // ===== حساب التعشيش (جريد عادي + مقارنة بالتدوير) =====
-  function grid(bw,bh,sheetW,sheetH){
-    const cols=Math.floor((sheetW+2)/bw), rows=Math.floor((sheetH+2)/bh);
-    return {cols,rows,count:cols*rows};
+  // ===== التعشيش =====
+  function grid(bw,bh){ 
+    const c=Math.floor((SW+2)/bw), r=Math.floor((SH+2)/bh);
+    return {c,r,n:c*r};
   }
-  const normal = grid(dw,dh,SW,SH);
-  const rotated = grid(dh,dw,SW,SH);
-  const best = normal.count>=rotated.count ? normal : rotated;
-  const bestRotated = rotated.count>normal.count;
+  const a=grid(dw,dh), b=grid(dh,dw);
+  const best=a.n>=b.n?a:b, rot=b.n>a.n;
 
   // ===== الرسم =====
   const cv=document.getElementById('cv');
-  const scale=Math.min(cv.parentElement.clientWidth/dw, 500/dh)*0.9;
+  const maxW=cv.parentElement.clientWidth-20;
+  const scale=Math.min(maxW/dw, 600/dh);
   cv.width=dw*scale+40; cv.height=dh*scale+40;
-  const ctx=cv.getContext('2d');
-  ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height);
-  ctx.save();
-  ctx.translate(20,20); ctx.scale(scale,scale);
+  const x=cv.getContext('2d');
 
-  // خطوط القص (أحمر متصل)
-  ctx.strokeStyle='#e63946'; ctx.lineWidth=1.5/scale;
-  // الجسم الرئيسي
-  ctx.strokeRect(glue,flap,L,H);
-  ctx.strokeRect(glue+L,flap,W,H);
-  ctx.strokeRect(glue+L+W,flap,L,H);
-  ctx.strokeRect(glue+L+W+L,flap,W,H);
-  // اللزمة
-  ctx.setLineDash([3/scale,2/scale]);
-  ctx.strokeStyle='#2a9d8f';
-  ctx.strokeRect(0,flap,glue,H);
-  // الفلابات العلوية والسفلية
-  for(let i=0;i<4;i++){
-    const x=glue+i*(i%2===0?L:W);
-    const w=(i%2===0?L:W);
-    ctx.beginPath();
-    ctx.moveTo(x,flap); ctx.lineTo(x+w/2,0); ctx.lineTo(x+w,flap);
-    ctx.moveTo(x,flap+H); ctx.lineTo(x+w/2,flap*2+H); ctx.lineTo(x+w,flap+H);
-    ctx.stroke();
-  }
-  ctx.restore();
+  // خلفية بيضاء واضحة
+  x.fillStyle='#ffffff';
+  x.fillRect(0,0,cv.width,cv.height);
 
-  // النتيجة
+  x.save();
+  x.translate(20,20);
+  x.scale(scale,scale);
+  x.lineWidth=Math.max(2/scale,0.5);   // خط سميك ومضمون
+
+  // خطوط التثليث (الطي) - أزرق متقطع
+  x.strokeStyle='#0066ff';
+  x.setLineDash([5/scale,3/scale]);
+
+  // الجسم: 4 ألواح (L,W,L,W)
+  const panels=[L,W,L,W];
+  let px=glue;
+  panels.forEach(p=>{
+    x.strokeRect(px,flap,p,H);
+    px+=p;
+  });
+
+  // الفلابات العلوية والسفلية (شكل المنزل/الغطاء)
+  x.beginPath();
+  px=glue;
+  panels.forEach(p=>{
+    x.moveTo(px,flap);
+    x.lineTo(px+p/2,flap-flap); // قمة الفلاب العلوي
+    x.lineTo(px+p,flap);
+    x.moveTo(px,flap+H);
+    x.lineTo(px+p/2,flap+H+flap); // قمة الفلاب السفلي
+    x.lineTo(px+p,flap+H);
+    px+=p;
+  });
+  x.stroke();
+
+  // خطوط القص (المحيط الخارجي) - أحمر سميك متصل
+  x.setLineDash([]);
+  x.strokeStyle='#e60000';
+  x.lineWidth=Math.max(3/scale,0.8);
+  x.strokeRect(glue,0,2*(L+W),dh);      // محيط الجسم + الفلابات
+  x.strokeRect(0,flap,glue,H);          // اللزمة
+
+  x.restore();
+
+  // ===== النتيجة =====
   document.getElementById('result').style.display='block';
-  const areaPiece=dw*dh, areaSheet=SW*SH;
-  const efficiency=((best.count*areaPiece/areaSheet)*100).toFixed(1);
+  const eff=((best.n*dw*dh/(SW*SH))*100).toFixed(1);
   document.getElementById('stats').innerHTML=
    `📐 مقاس الدايكت المسطّح: <b>dw×{dw} ×dw×{dh} مم</b><br>`+
-   `🧩 عدد القطع في الورقة (SW×{SW}×SW×{SH}): <b>${best.count} قطعة</b>`+
-   ` (best.colsعمود×{best.cols} عمود ×best.colsعمود×{best.rows} صف)`+
-   (bestRotated?' <span style="color:#2a9d8f">(بالتدوير 90°)</span>':'')+'<br>'+
-   `♻️ استغلال مساحة الورقة: <b>${efficiency}%</b><br>`+
-   `💡 نصيحة: لو زوّدت الورقة أو قللت الهوالك ممكن توصل لكفاءة أعلى.`;
+   `🧩 القطع في الورقة (SW×{SW}×SW×{SH} مم): <b>best.nقطعة</b>({best.n} قطعة</b> (best.nقطعة</b>({best.c}×${best.r})`+
+   (rot?' <span style="color:#2a9d8f">(مدوّرة 90°)</span>':'')+'<br>'+
+   `♻️ كفاءة استغلال الورقة: <b>${eff}%</b>`;
 }
 </script>
-</body>
-</html>
