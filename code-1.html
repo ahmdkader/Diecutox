@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مولد الدايكت - Die-Line Generator</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:'Segoe UI', Tahoma, sans-serif; }
+  body { background:#1a1a2e; color:#eee; padding:15px; }
+  h1 { text-align:center; color:#e94560; margin-bottom:5px; font-size:22px; }
+  p.sub { text-align:center; color:#888; font-size:13px; margin-bottom:15px; }
+  .card { background:#16213e; border-radius:12px; padding:15px; margin-bottom:15px; }
+  label { display:block; margin:8px 0 4px; font-size:14px; color:#aaa; }
+  input { width:100%; padding:10px; border-radius:8px; border:1px solid #333;
+          background:#0f3460; color:#fff; font-size:16px; }
+  .row { display:flex; gap:10px; }
+  .row > div { flex:1; }
+  button { width:100%; padding:14px; margin-top:12px; border:none; border-radius:10px;
+           background:#e94560; color:#fff; font-size:17px; font-weight:bold; cursor:pointer; }
+  button:active { transform:scale(0.98); }
+  #result { background:#fff; border-radius:12px; overflow:hidden; }
+  canvas { width:100%; display:block; }
+  .info { background:#0f3460; border-radius:8px; padding:10px; margin-top:10px; font-size:14px; line-height:1.8; }
+  .info b { color:#e94560; }
+</style>
+</head>
+<body>
+
+<h1>📦 مولد الدايكت</h1>
+<p class="sub">علبة مستطيلة (صندوق أدوية / كرتوني)</p>
+
+<div class="card">
+  <div class="row">
+    <div><label>الطول L (مم)</label><input type="number" id="L" value="80"></div>
+    <div><label>العرض W (مم)</label><input type="number" id="W" value="40"></div>
+    <div><label>الارتفاع H (مم)</label><input type="number" id="H" value="120"></div>
+  </div>
+  <div class="row">
+    <div><label>عرض ورقة الطباعة (مم)</label><input type="number" id="SW" value="700"></div>
+    <div><label>طول ورقة الطباعة (مم)</label><input type="number" id="SH" value="1000"></div>
+  </div>
+  <button onclick="generate()">🎨 ارسم الدايكت واحسب التعشيش</button>
+</div>
+
+<div id="result" style="display:none;">
+  <canvas id="cv"></canvas>
+</div>
+<div class="info" id="stats"></div>
+
+<script>
+function generate(){
+  const L=+document.getElementById('L').value;
+  const W=+document.getElementById('W').value;
+  const H=+document.getElementById('H').value;
+  const SW=+document.getElementById('SW').value;
+  const SH=+document.getElementById('SH').value;
+
+  // أبعاد الدايكت المسطّح:
+  // العرض = 2*(L+W) + لزمة 20مم ، الطول = H + فلاب علوي وسفلي (W/2 لكل)
+  const glue = 20;
+  const flap = Math.min(W/2, 25);
+  const dw = 2*(L+W) + glue;   // عرض الدايكت
+  const dh = H + 2*flap;       // طول الدايكت
+
+  // ===== حساب التعشيش (جريد عادي + مقارنة بالتدوير) =====
+  function grid(bw,bh,sheetW,sheetH){
+    const cols=Math.floor((sheetW+2)/bw), rows=Math.floor((sheetH+2)/bh);
+    return {cols,rows,count:cols*rows};
+  }
+  const normal = grid(dw,dh,SW,SH);
+  const rotated = grid(dh,dw,SW,SH);
+  const best = normal.count>=rotated.count ? normal : rotated;
+  const bestRotated = rotated.count>normal.count;
+
+  // ===== الرسم =====
+  const cv=document.getElementById('cv');
+  const scale=Math.min(cv.parentElement.clientWidth/dw, 500/dh)*0.9;
+  cv.width=dw*scale+40; cv.height=dh*scale+40;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.save();
+  ctx.translate(20,20); ctx.scale(scale,scale);
+
+  // خطوط القص (أحمر متصل)
+  ctx.strokeStyle='#e63946'; ctx.lineWidth=1.5/scale;
+  // الجسم الرئيسي
+  ctx.strokeRect(glue,flap,L,H);
+  ctx.strokeRect(glue+L,flap,W,H);
+  ctx.strokeRect(glue+L+W,flap,L,H);
+  ctx.strokeRect(glue+L+W+L,flap,W,H);
+  // اللزمة
+  ctx.setLineDash([3/scale,2/scale]);
+  ctx.strokeStyle='#2a9d8f';
+  ctx.strokeRect(0,flap,glue,H);
+  // الفلابات العلوية والسفلية
+  for(let i=0;i<4;i++){
+    const x=glue+i*(i%2===0?L:W);
+    const w=(i%2===0?L:W);
+    ctx.beginPath();
+    ctx.moveTo(x,flap); ctx.lineTo(x+w/2,0); ctx.lineTo(x+w,flap);
+    ctx.moveTo(x,flap+H); ctx.lineTo(x+w/2,flap*2+H); ctx.lineTo(x+w,flap+H);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // النتيجة
+  document.getElementById('result').style.display='block';
+  const areaPiece=dw*dh, areaSheet=SW*SH;
+  const efficiency=((best.count*areaPiece/areaSheet)*100).toFixed(1);
+  document.getElementById('stats').innerHTML=
+   `📐 مقاس الدايكت المسطّح: <b>dw×{dw} ×dw×{dh} مم</b><br>`+
+   `🧩 عدد القطع في الورقة (SW×{SW}×SW×{SH}): <b>${best.count} قطعة</b>`+
+   ` (best.colsعمود×{best.cols} عمود ×best.colsعمود×{best.rows} صف)`+
+   (bestRotated?' <span style="color:#2a9d8f">(بالتدوير 90°)</span>':'')+'<br>'+
+   `♻️ استغلال مساحة الورقة: <b>${efficiency}%</b><br>`+
+   `💡 نصيحة: لو زوّدت الورقة أو قللت الهوالك ممكن توصل لكفاءة أعلى.`;
+}
+</script>
+</body>
+</html>
