@@ -40,16 +40,16 @@
 
   <h3>باراميترات اختيارية</h3>
   <div class="row">
-    <div><label>Tuck Flap مقاس التدبيب</label><input type="number" id="T_" value="20"></div>
+    <div><label>Tuck Flap التدبيب</label><input type="number" id="T_" value="20"></div>
     <div><label>Glue Flap اللزمة</label><input type="number" id="G_" value="15"></div>
   </div>
   <div class="row">
-    <div><label>Glue Angle زاوية اللزمة°</label><input type="number" id="GA_" value="80"></div>
-    <div><label>Corner Radius تدوير الزوايا</label><input type="number" id="R_" value="5"></div>
+    <div><label>Glue Angle الزاوية°</label><input type="number" id="GA_" value="80"></div>
+    <div><label>Corner Radius التدوير</label><input type="number" id="R_" value="5"></div>
   </div>
   <div class="row">
     <div><label>Thumb Hole فتحة الإبهام</label><input type="number" id="TH_" value="10"></div>
-    <div><label>Margin هامش</label><input type="number" id="M_" value="10"></div>
+    <div><label>Dust Flap عمق الدست</label><input type="number" id="D_" value="18"></div>
   </div>
 
   <h3>الورقة</h3>
@@ -69,14 +69,13 @@
 <script>
 function generate(){
   const L=+L_.value, W=+W_.value, H=+H_.value;
-  const T=+T_.value, G=+G_.value, GA=+GA_.value, R=+R_.value, TH=+TH_.value;
+  const T=+T_.value, G=+G_.value, GA=+GA_.value, R=+R_.value, TH=+TH_.value, D=+D_.value;
   const SW=+SW_.value, SH=+SH_.value;
-  if(!(L>0&&W>0&&H>0&&T>0&&G>0&&SW>0&&SH>0)){ alert('دخل مقاسات صحيحة'); return; }
+  if(!(L>0&&W>0&&H>0&&T>0&&G>0&&D>0&&SW>0&&SH>0)){ alert('دخل مقاسات صحيحة'); return; }
 
   // ===== الأبعاد الكلية =====
-  const D  = Math.min(T*0.8, W*0.9);     // عمق الدست فلاب (أقصر من التدبيب)
-  const dw = G + L + W + L + W;          // العرض الكلي
-  const dh = H + 2*T;                    // الطول الكلي
+  const dw = G + L + W + L + W;
+  const dh = H + 2*T;
 
   // ===== التعشيش =====
   function grid(bw,bh){
@@ -88,8 +87,7 @@ function generate(){
 
   // ===== إحداثيات =====
   const xG=0, xA=G, xB=G+L, xC=G+L+W, xD=G+2*L+W, xE=dw;
-  const yT = T;            // أعلى الجسم
-  const yB = yT + H;       // أسفل الجسم
+  const yT=T, yB=yT+H;
 
   // ===== الرسم =====
   const wrap=document.getElementById('previewWrap');
@@ -104,39 +102,32 @@ function generate(){
 
   const CUT='#ec1e96', FOLD='#00b0c8';
 
-  // ---------- فلاب تدبيب بزوايا مدوّرة ----------
+  // ---------- فلاب تدبيب: مستطيل برأس مدوّر (مسار مغلق واحد) ----------
   function tuckFlap(x1,x2,top){
-    const s = top ? 1 : -1;
-    const yBase = top ? yT : yB;
-    const yTip  = top ? 0 : dh;
     const r = Math.min(R, (x2-x1)/3, T/2);
-    g.strokeStyle=CUT; g.lineWidth=lw;
+    g.strokeStyle=CUT; g.lineWidth=lw; g.setLineDash([]);
     g.beginPath();
-    g.moveTo(x1, yBase);
-    g.lineTo(x1, top ? r : yTip + (top?0:-r) + (top? T - T : 0));
-    // نرسم بمنطق موحد:
-    g.closePath(); g.beginPath();
     if(top){
-      g.moveTo(x1, yBase);
-      g.lineTo(x1, r);
-      g.arc(x1+r, r, r, Math.PI, 1.5*Math.PI);
+      g.moveTo(x1, yT);           // شمال تحت
+      g.lineTo(x1, r);            // شمال فوق
+      g.arc(x1+r, r, r, Math.PI, 1.5*Math.PI);   // ركن مدوّر شمال
       g.lineTo(x2-r, 0);
-      g.arc(x2-r, r, r, 1.5*Math.PI, 2*Math.PI);
-      g.lineTo(x2, yBase);
+      g.arc(x2-r, r, r, 1.5*Math.PI, 2*Math.PI); // ركن مدوّر يمين
+      g.lineTo(x2, yT);           // يمين تحت
     }else{
-      g.moveTo(x1, yBase);
+      g.moveTo(x1, yB);
       g.lineTo(x1, dh-r);
       g.arc(x1+r, dh-r, r, Math.PI, 0.5*Math.PI, true);
       g.lineTo(x2-r, dh);
       g.arc(x2-r, dh-r, r, 0.5*Math.PI, 0, true);
-      g.lineTo(x2, yBase);
+      g.lineTo(x2, yB);
     }
     g.stroke();
 
-    // فتحة الإبهام (دايرة قرب طية التدبيب)
+    // فتحة الإبهام قرب خط الطي
     if(TH>0){
       const thr=TH/2;
-      const cy = top ? yTip + thr + 3 : yTip - thr - 3;
+      const cy = top ? yT - thr - 4 : yB + thr + 4;
       g.beginPath();
       g.arc((x1+x2)/2, cy, thr, 0, 2*Math.PI);
       g.stroke();
@@ -145,32 +136,52 @@ function generate(){
 
   // ---------- دست فلاب شبه منحرف ----------
   function dustFlap(x1,x2,top){
-    const s = top ? 1 : -1;
-    const yBase = top ? yT : yB;
-    const yTip  = top ? yT - D : yB + D;
-    const inset = Math.min(6, (x2-x1)*0.2);
-    g.strokeStyle=CUT; g.lineWidth=lw;
+    const inset=Math.min(5,(x2-x1)*0.18);
+    g.strokeStyle=CUT; g.lineWidth=lw; g.setLineDash([]);
     g.beginPath();
-    g.moveTo(x1, yBase);
-    g.lineTo(x1+inset, yTip);
-    g.lineTo(x2-inset, yTip);
-    g.lineTo(x2, yBase);
+    if(top){
+      g.moveTo(x1, yT);
+      g.lineTo(x1+inset, yT-D);
+      g.lineTo(x2-inset, yT-D);
+      g.lineTo(x2, yT);
+    }else{
+      g.moveTo(x1, yB);
+      g.lineTo(x1+inset, yB+D);
+      g.lineTo(x2-inset, yB+D);
+      g.lineTo(x2, yB);
+    }
     g.stroke();
   }
 
-  // ---------- الطرف العلوي: تدبيب على L الأول + دست على W الأول + دست على W الثاني ----------
+  // ---------- حافة مقصوصة مستقيمة (للألواح من غير فلابات) ----------
+  function plainCut(x1,x2,top){
+    const yy = top ? yT : yB;
+    g.strokeStyle=CUT; g.lineWidth=lw; g.setLineDash([]);
+    g.beginPath(); g.moveTo(x1,yy); g.lineTo(x2,yy); g.stroke();
+  }
+
+  // ================= توزيع الفلابات الصحيح =================
+  // فوق: تدبيب على L الأول (xA-xB)
   tuckFlap(xA, xB, true);
+  // دست علوي على W الأول (xB-xC)
   dustFlap(xB, xC, true);
+  // حافة مستقيمة على L الثاني (xC-xD) — مفيش فلاب
+  plainCut(xC, xD, true);
+  // دست علوي على W الثاني (xD-xE)
   dustFlap(xD, xE, true);
 
-  // ---------- الطرف السفلي: دست على L الأول + تدبيب على L الثاني (Reverse) + دست على W الثاني ----------
-  dustFlap(xA, xB, false);
+  // تحت: بالعكس (Reverse Tuck)
+  plainCut(xA, xB, false);
+  dustFlap(xB, xC, false);
   tuckFlap(xC, xD, false);
   dustFlap(xD, xE, false);
 
-  // ---------- لزمة جانبية بزاوية ----------
+  // ---------- جسم العلبة (مستطيل القص الرئيسي) ----------
+  g.strokeStyle=CUT; g.setLineDash([]);
+  g.strokeRect(xA, yT, L+W+L+W, H);
+
+  // ---------- اللزمة الجانبية بزاوية ----------
   const off = G / Math.tan(GA*Math.PI/180);
-  g.strokeStyle=CUT;
   g.beginPath();
   g.moveTo(xA, yT);
   g.lineTo(xG, yT - off);
@@ -178,13 +189,13 @@ function generate(){
   g.lineTo(xA, yB);
   g.stroke();
 
-  // ---------- خطوط الطي (سماوية) ----------
+  // ---------- خطوط الطي السماوية ----------
   g.strokeStyle=FOLD; g.lineWidth=lw;
-  // رأسية بين الألواح
+  // طيات رأسية بين الألواح
   [xA,xB,xC,xD].forEach(xx=>{
     g.beginPath(); g.moveTo(xx,yT); g.lineTo(xx,yB); g.stroke();
   });
-  // أفقية عند أعلى وأسفل الجسم
+  // طيات أفقية عند أعلى وأسفل الجسم
   [yT,yB].forEach(yy=>{
     g.beginPath(); g.moveTo(xG,yy); g.lineTo(xE,yy); g.stroke();
   });
@@ -193,7 +204,10 @@ function generate(){
   g.fillStyle='#333';
   g.font=`${Math.max(10/scale,3)}px Tahoma`;
   g.textAlign='center'; g.textBaseline='middle';
-  g.fillText(`Card Box dw×{dw}×dw×{dh} mm`, dw/2, yT+H/2);
+  g.fillText(`L=${L}`, (xA+xB)/2, (yT+yB)/2);
+  g.fillText(`W=${W}`, (xB+xC)/2, (yT+yB)/2);
+  g.fillText(`L=${L}`, (xC+xD)/2, (yT+yB)/2);
+  g.fillText(`W=${W}`, (xD+xE)/2, (yT+yB)/2);
 
   // ===== النتيجة =====
   const eff=((best.n*dw*dh/(SW*SH))*100).toFixed(1);
@@ -201,290 +215,6 @@ function generate(){
   st.style.display='block';
   st.innerHTML=
    `📐 مقاس الدايكت المسطّح: <b>dw×{dw} ×dw×{dh} مم</b><br>`+
-   `🧩 القطع في الورقة (SW×{SW}×SW×{SH}): <b>best.nقطعة</b>({best.n} قطعة</b> (best.nقطعة</b>({best.c} × ${best.r})`+
-   (rot?' <span style="color:#2a9d8f">(مدوّرة 90°)</span>':'')+'<br>'+
-   `♻️ كفاءة استغلال الورقة: <b>${eff}%</b>`;
-}
-</script>
-
-</body>
-</html>
-  const D   = Math.min(W*0.85, 60);      // عمق الدست فلاب
-  const T   = Math.min(W*0.55, 40);      // عمق التدبيب (فوق الدست)
-  const R   = Math.min(T*0.35, 12);      // نصف قطر رأس التدبيب المدوّر
-
-  const dw = G + L + W + L + W;          // العرض الكلي
-  const dh = H + 2*(D + T);              // الطول الكلي
-
-  // ===== التعشيش =====
-  function grid(bw,bh){
-    const c=Math.floor((SW+2)/bw), r=Math.floor((SH+2)/bh);
-    return {c,r,n:c*r};
-  }
-  const a=grid(dw,dh), b=grid(dh,dw);
-  const best=a.n>=b.n?a:b, rot=b.n>a.n;
-
-  // ===== إحداثيات أفقية =====
-  const xG=0, xA=G, xB=G+L, xC=G+L+W, xD=G+2*L+W, xE=dw;
-
-  // ===== إحداثيات رأسية =====
-  // فوق: التدبيب من yTop لحد yDustT ، الدست من yDustT لحد yBodyT
-  const yBodyT = D + T;        // أعلى الجسم
-  const yBodyB = yBodyT + H;   // أسفل الجسم
-  const yDustT = T;            // مستوى طي الدست العلوي
-  const yDustB = yBodyB + T;   // مستوى طي الدست السفلي
-
-  // ===== الرسم =====
-  const wrap=document.getElementById('previewWrap');
-  wrap.style.display='block';
-  const avail=wrap.clientWidth-20;
-  const scale=Math.min(avail/dw, 900/dh);
-  const pad=15;
-  const cv=document.getElementById('cv');
-  cv.width=dw*scale+pad*2; cv.height=dh*scale+pad*2;
-  const g=cv.getContext('2d');
-  g.fillStyle='#fff'; g.fillRect(0,0,cv.width,cv.height);
-  g.translate(pad,pad); g.scale(scale,scale);
-  const lw=Math.max(2/scale,0.35);
-
-  const CUT='#ed1c24', FOLD='#00a651';
-
-  // ---------- دالة رسم طرف كامل ----------
-  // top=true → الطرف العلوي (تدبيب على لوح A-B)
-  // top=false → الطرف السفلي (تدبيب على لوح C-D) = Reverse Tuck
-  function drawEnd(top){
-    const s = top ? 1 : -1;              // اتجاه الرسم
-    const yBase = top ? yBodyT : yBodyB; // خط طي الفلابات عند الجسم
-    const yDust = top ? yDustT : yDustB; // خط طي التدبيب
-    const yTip  = top ? 0 : dh;          // طرف الورقة
-
-    // ===== 1) الدست فلاب (trapezoid) على لوح W =====
-    function dustFlap(x1,x2){
-      const inset = Math.min(6, (x2-x1)*0.15); // ضيق من فوق
-      g.strokeStyle=CUT; g.lineWidth=lw; g.setLineDash([]);
-      g.beginPath();
-      g.moveTo(x1, yBase);
-      g.lineTo(x1+inset, yDust);
-      g.lineTo(x2-inset, yDust);
-      g.lineTo(x2, yBase);
-      g.stroke();
-    }
-
-    // ===== 2) فلاب التدبيب (مستطيل برأس مدوّر) على لوح L =====
-    function tuckFlap(x1,x2){
-      const inset = 3;
-      const xa=x1+inset, xb=x2-inset;
-      g.strokeStyle=CUT; g.lineWidth=lw; g.setLineDash([]);
-      g.beginPath();
-      // يبدأ من خط طي التدبيب، يطلع جانب شمال
-      g.moveTo(xa, yDust);
-      g.lineTo(xa, yTip + s*R);
-      // رأس مدوّر
-      g.arc(xa+R, yTip+s*R, R, Math.PI, 0, !top);
-      // جانب يمين نازل
-      g.lineTo(xb, yDust);
-      g.stroke();
-
-      // كتاف مقصوصة (شولدرز) عند قاعدة الرأس
-      const sh = Math.min(R*0.7, 8);
-      g.beginPath();
-      g.moveTo(xa, yTip + s*(R+sh));
-      g.lineTo(xa+sh, yTip + s*(R+sh));
-      g.lineTo(xa+sh, yTip + s*R);
-      g.moveTo(xb, yTip + s*(R+sh));
-      g.lineTo(xb-sh, yTip + s*(R+sh));
-      g.lineTo(xb-sh, yTip + s*R);
-      g.stroke();
-    }
-
-    if(top){
-      tuckFlap(xA, xB);       // تدبيب علوي على لوح L الأول
-      dustFlap(xB, xC);       // دست علوي على W الأول
-      dustFlap(xD, xE);       // دست علوي على W الثاني
-    }else{
-      dustFlap(xA, xB);       // دست سفلي على L الأول
-      tuckFlap(xC, xD);       // تدبيب سفلي على لوح L الثاني (معاكس)
-      dustFlap(xD, xE);       // دست سفلي على W الثاني
-    }
-  }
-
-  drawEnd(true);
-  drawEnd(false);
-
-  // ---------- اللزمة الجانبية (يسار) ----------
-  g.strokeStyle=CUT; g.setLineDash([]);
-  g.beginPath();
-  g.moveTo(xA, yBodyT);
-  g.lineTo(xG, yBodyT - D*0.25);
-  g.lineTo(xG, yBodyB + D*0.25);
-  g.lineTo(xA, yBodyB);
-  g.stroke();
-
-  // ---------- خطوط الطي الخضراء ----------
-  g.strokeStyle=FOLD; g.lineWidth=lw;
-
-  // طيات رأسية بين الألواح (على ارتفاع الجسم فقط)
-  [xA,xB,xC,xD].forEach(xx=>{
-    g.beginPath(); g.moveTo(xx,yBodyT); g.lineTo(xx,yBodyB); g.stroke();
-  });
-
-  // طي قاعدة الدست والتدبيب (أفقي)
-  [yDustT, yBodyT, yBodyB, yDustB].forEach(yy=>{
-    g.beginPath(); g.moveTo(xA,yy); g.lineTo(xE,yy); g.stroke();
-  });
-
-  // طي رأسي بين التدبيب والدست (على عرض لوح التدبيب)
-  g.beginPath(); g.moveTo(xA, yDustT); g.lineTo(xA, yBodyT); g.stroke();
-  g.beginPath(); g.moveTo(xC, yDustB); g.lineTo(xC, yBodyB); g.stroke();
-
-  // ---------- كتابة الأبعاد ----------
-  g.fillStyle='#333';
-  g.font=`${Math.max(11/scale,3)}px Tahoma`;
-  g.textAlign='center'; g.textBaseline='middle';
-  g.fillText(`L=${L}`, (xA+xB)/2, (yBodyT+yBodyB)/2);
-  g.fillText(`W=${W}`, (xB+xC)/2, (yBodyT+yBodyB)/2);
-  g.fillText(`L=${L}`, (xC+xD)/2, (yBodyT+yBodyB)/2);
-  g.fillText(`W=${W}`, (xD+xE)/2, (yBodyT+yBodyB)/2);
-
-  // ===== النتيجة =====
-  const eff=((best.n*dw*dh/(SW*SH))*100).toFixed(1);
-  const st=document.getElementById('stats');
-  st.style.display='block';
-  st.innerHTML=
-   `📐 مقاس الدايكت المسطّح: <b>dw.toFixed(1)×{dw.toFixed(1)} ×dw.toFixed(1)×{dh.toFixed(1)} مم</b><br>`+
-   `🧩 القطع في الورقة (SW×{SW}×SW×{SH}): <b>best.nقطعة</b>({best.n} قطعة</b> (best.nقطعة</b>({best.c} × ${best.r})`+
-   (rot?' <span style="color:#2a9d8f">(مدوّرة 90°)</span>':'')+'<br>'+
-   `♻️ كفاءة استغلال الورقة: <b>${eff}%</b>`;
-}
-</script>
-
-</body>
-</html>
-  const yDust = yB-D;      // أعلى الدست فلاب
-  const yTuck = 0;         // أعلى التدبيب
-
-  // ===== الرسم =====
-  const wrap=document.getElementById('previewWrap');
-  wrap.style.display='block';
-  const avail=wrap.clientWidth-20;
-  const scale=Math.min(avail/dw, 900/dh);
-  const pad=15;
-  const cv=document.getElementById('cv');
-  cv.width=dw*scale+pad*2; cv.height=dh*scale+pad*2;
-  const g=cv.getContext('2d');
-  g.fillStyle='#fff'; g.fillRect(0,0,cv.width,cv.height);
-  g.translate(pad,pad); g.scale(scale,scale);
-  const lw=Math.max(2/scale,0.35);
-
-  // ---------- دالة رسم طرف كامل (فوق أو تحت) ----------
-  function drawEnd(top){
-    // الإشارة: فوق نرسم لأعلى، تحت نرسم لأسفل
-    const s = top ? -1 : 1;
-    const yBase = top ? yB : yE;   // خط الجسم
-
-    // --- التدبيب على لوح L الأول (xA→xB) ---
-    let xa=xA, xb=xB;
-    if(!top){ xa=xC; xb=xD; }   // Reverse Tuck: التدبيب السفلي معاكس
-    const yt = yBase + s*(T+D); // أعلى/أسفل التدبيب
-    const yd = yBase + s*D;     // مستوى الدست فلاب
-    const inset = 3;
-
-    g.strokeStyle='#ed1c24'; g.lineWidth=lw; g.setLineDash([]);
-    g.beginPath();
-    // جانب التدبيب الأيسر
-    g.moveTo(xa+inset, yd);
-    g.lineTo(xa+inset, yt + s*r);
-    // الرأس المدوّر
-    g.arc(xa+inset+r, yt+s*r, r, Math.PI, 0, !top);
-    // الجانب الأيمن للرأس
-    g.moveTo(xb-inset-r, yt+s*r);
-    g.lineTo(xb-inset, yt+s*r);
-    g.lineTo(xb-inset, yd);
-    g.stroke();
-
-    // كتاف التدبيب المقصوصة (الدرجات الصغيرة عند الرأس)
-    const sh=Math.min(r*0.55,9);
-    g.beginPath();
-    g.moveTo(xa+inset, yt+s*(r+sh)); g.lineTo(xa+inset+sh, yt+s*(r+sh));
-    g.lineTo(xa+inset+sh, yt+s*r);
-    g.moveTo(xb-inset, yt+s*(r+sh)); g.lineTo(xb-inset-sh, yt+s*(r+sh));
-    g.lineTo(xb-inset-sh, yt+s*r);
-    g.stroke();
-
-    // --- الدست فلاب على لوح W (بزوايا مايلة) ---
-    let xw1, xw2;
-    if(top){ xw1=xB; xw2=xC; } else { xw1=xB; xw2=xC; }
-    const ang=D*0.45;
-    g.beginPath();
-    g.moveTo(xw1, yBase);
-    g.lineTo(xw1, yd + s*ang);
-    g.lineTo(xw1+ang*0.7, yd);
-    g.lineTo(xw2-ang*0.7, yd);
-    g.lineTo(xw2, yd + s*ang);
-    g.lineTo(xw2, yBase);
-    g.stroke();
-
-    // --- الدست فلاب الثاني على لوح W الآخر ---
-    if(top){ xw1=xD; xw2=xE; } else { xw1=xD; xw2=xE; }
-    g.beginPath();
-    g.moveTo(xw1, yBase);
-    g.lineTo(xw1, yd + s*ang);
-    g.lineTo(xw1+ang*0.7, yd);
-    g.lineTo(xw2-ang*0.7, yd);
-    g.lineTo(xw2, yd + s*ang);
-    g.lineTo(xw2, yBase);
-    g.stroke();
-  }
-
-  drawEnd(true);   // الطرف العلوي
-  drawEnd(false);  // الطرف السفلي
-
-  // ---------- اللزمة الشمال (عريضة بحواف مايلة) ----------
-  g.strokeStyle='#ed1c24'; g.setLineDash([]);
-  g.beginPath();
-  g.moveTo(xA, yB);
-  g.lineTo(xG1, yB - D*0.3);
-  g.lineTo(xG1, yE + D*0.3);
-  g.lineTo(xA, yE);
-  g.stroke();
-
-  // ---------- اللزمة اليمين (ضيقة بحواف مايلة) ----------
-  g.beginPath();
-  g.moveTo(xE, yB);
-  g.lineTo(xF, yB + D*0.15);
-  g.lineTo(xF, yE - D*0.15);
-  g.lineTo(xE, yE);
-  g.stroke();
-
-  // ---------- خطوط الطي الخضراء ----------
-  g.strokeStyle='#00a651'; g.lineWidth=lw; g.setLineDash([]);
-
-  // الطيات الرأسية بين الألواح (على ارتفاع الجسم فقط زي العينة)
-  [xA,xB,xC,xD].forEach(xx=>{
-    g.beginPath(); g.moveTo(xx,yB); g.lineTo(xx,yE); g.stroke();
-  });
-
-  // طي قاعدة كل فلاب (أفقي عند مستوى الدست والتدبيب)
-  [[yDust,yB],[yE,yE+D]].forEach(([y1,y2])=>{
-    g.beginPath(); g.moveTo(xA,y1); g.lineTo(xE,y1); g.stroke();
-    g.beginPath(); g.moveTo(xA,y2); g.lineTo(xE,y2); g.stroke();
-  });
-
-  // ===== كتابة الأبعاد =====
-  g.fillStyle='#333';
-  g.font=`${Math.max(11/scale,3)}px Tahoma`;
-  g.textAlign='center';
-  g.fillText(`L=${L}`, (xA+xB)/2, yB+H/2);
-  g.fillText(`W=${W}`, (xB+xC)/2, yB+H/2);
-  g.fillText(`L=${L}`, (xC+xD)/2, yB+H/2);
-  g.fillText(`W=${W}`, (xD+xE)/2, yB+H/2);
-
-  // ===== النتيجة =====
-  const eff=((best.n*dw*dh/(SW*SH))*100).toFixed(1);
-  const st=document.getElementById('stats');
-  st.style.display='block';
-  st.innerHTML=
-   `📐 مقاس الدايكت المسطّح: <b>dw.toFixed(1)×{dw.toFixed(1)} ×dw.toFixed(1)×{dh.toFixed(1)} مم</b><br>`+
    `🧩 القطع في الورقة (SW×{SW}×SW×{SH}): <b>best.nقطعة</b>({best.n} قطعة</b> (best.nقطعة</b>({best.c} × ${best.r})`+
    (rot?' <span style="color:#2a9d8f">(مدوّرة 90°)</span>':'')+'<br>'+
    `♻️ كفاءة استغلال الورقة: <b>${eff}%</b>`;
