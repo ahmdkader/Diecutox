@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>خطوة 1 — الجسم واللزمة</title>
+<style>
+  body{font-family:Arial,sans-serif;margin:16px;background:#f5f5f5}
+  label{display:inline-block;margin:6px 0;font-weight:bold}
+  input{width:80px;padding:8px;font-size:16px;margin-left:6px}
+  button{padding:10px 20px;font-size:16px;background:#ec1e96;color:#fff;border:none;border-radius:6px;margin-top:10px}
+  #stage{background:#fff;margin-top:14px;border:1px solid #ccc;overflow:auto}
+  svg{display:block}
+</style>
+</head>
+<body>
+
+<h2>الخطوة 1 — جسم العلبة (Reverse Tuck End)</h2>
+
+<label>L (mm):<input type="number" id="L" value="60"></label><br>
+<label>W (mm):<input type="number" id="W" value="40"></label><br>
+<label>H (mm):<input type="number" id="H" value="120"></label><br>
+<label>Glue Flap (mm):<input type="number" id="GF" value="15"></label><br>
+<label>Glue Angle (deg):<input type="number" id="GA" value="15"></label><br>
+
+<button onclick="draw()">ارسم</button>
+
+<div id="stage"></div>
+
+<script>
+function draw(){
+  const L=+document.getElementById('L').value;
+  const W=+document.getElementById('W').value;
+  const H=+document.getElementById('H').value;
+  const GF=+document.getElementById('GF').value;
+  const GA=+document.getElementById('GA').value*Math.PI/180;
+
+  // مقياس الرسم: 1mm = 3px
+  const S=3, PAD=30;
+
+  const totalWidth=L+W+L+W+GF;
+  const svgW=(totalWidth*S)+(PAD*2);
+  const svgH=(H*S)+(PAD*2);
+
+  let x=PAD; // نبدأ من الشمال
+  const yTop=PAD;
+  const cut='#ec1e96', fold='#00b0c8';
+
+  let paths='';
+
+  // حدود القص الخارجية للجسم (مستطيل بدون اللزمة)
+  paths+=`<path d="M PAD{PAD}PAD{yTop} H x+(totalWidth−GF)∗SV{x+ (totalWidth-GF)*S} Vx+(totalWidth−GF)∗SV{yTop+H*S} H ${PAD} Z"
+           fill="none" stroke="${cut}" stroke-width="1.5"/>`;
+
+  // خطوط الطي الرأسية بين الألواح
+  const folds=[L, L+W, L+W+L];
+  for(const f of folds){
+    const fx=PAD+f*S;
+    paths+=`<line x1="fx"y1="{fx}" y1="fx"y1="{yTop}" x2="fx"y2="{fx}" y2="fx"y2="{yTop+H*S}"
+             stroke="${fold}" stroke-width="1" stroke-dasharray="4,3"/>`;
+  }
+
+  // اللزمة الجانبية بزاوية:
+  // قاعدة اللزمة = آخر خط طي، وضلعها المائل يبتدئ من فوق/تحت بمسافة زاوية
+  const gx=PAD+(L+W+L+W)*S; // x عند نهاية اللوح الرابع (= آخر خط طي)
+  const dy=Math.tan(GA)*(H/2)*S; // إزاحة رأسية نصفية حسب الزاوية
+
+  // مسار اللزمة: من أعلى نقطة على خط الطي، لأسفل يمين، لأسفل، ورجوع مائل لنقطة تحت
+  const gPath=`M gx{gx}gx{yTop+dy}
+               L gx+GF∗S{gx+GF*S}gx+GF∗S{(yTop+dy) + ( (H-2*(dy/S))*S*0 )} 
+               L gx+GF∗S{gx+GF*S}gx+GF∗S{yTop+H*S-dy}
+               Q gx+GF∗S{gx+GF*S}gx+GF∗S{yTop+H*S} gx+GF∗S−Math.abs(dy)∗0.5{gx+GF*S-Math.abs(dy)*0.5}gx+GF∗S−Math.abs(dy)∗0.5{yTop+H*S}
+               L gx{gx}gx{yTop+H*S-dy}
+               M gx{gx}gx{yTop+dy}`;
+  // تبسيط: شكل اللزمة التقليدي — مستطيل بحواف مائلة
+  const glue=`M gx{gx}gx{yTop+dy}
+              L gx+GF∗S{gx+GF*S}gx+GF∗S{yTop+dy*0.4}
+              L gx+GF∗S{gx+GF*S}gx+GF∗S{yTop+H*S-dy*0.4}
+              L gx{gx}gx{yTop+H*S-dy}`;
+
+  paths+=`<path d="glue"fill="none"stroke="{glue}" fill="none" stroke="glue"fill="none"stroke="{cut}" stroke-width="1.5"/>`;
+  paths+=`<path d="M gx{gx}gx{yTop+dy} L gx{gx}gx{yTop+H*S-dy}"
+           stroke="${fold}" stroke-width="1" stroke-dasharray="4,3"/>`;
+
+  document.getElementById('stage').innerHTML=
+   `<svg width="svgW"height="{svgW}" height="svgW"height="{svgH}" viewBox="0 0 svgW{svgW}svgW{svgH}">
+      <g>${paths}</g>
+    </svg>`;
+}
+
+draw();
+</script>
+</body>
+</html>
